@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能合同分析系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 自定义一些额外样式 */
+       .invalid {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        /* 新增批量模式样式 */
+       .mode-switch {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+       .mode-switch button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+       .batch-section {
+            display: none;
+        }
+
+       .active-mode {
+            display: block;
+        }
+
+       .upload-area {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        #resultsTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        #resultsTable th,
+        #resultsTable td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+       .download-btn {
+            background: #4CAF50;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex justify-center items-center">
+    <div class="calculator bg-white p-8 rounded-lg shadow-md w-full max-w-2xl">
+        <!-- 模式切换 -->
+        <div class="mode-switch">
+            <button onclick="switchMode('single')"
+                class="bg-blue-500 text-white py-2 px-6 rounded hover:bg-blue-600">单合同模式</button>
+            <button onclick="switchMode('batch')"
+                class="bg-blue-500 text-white py-2 px-6 rounded hover:bg-blue-600">批量模式</button>
+        </div>
+
+        <!-- 单合同模式（原有功能） -->
+        <div id="singleMode" class="active-mode">
+            <h2 class="text-2xl font-bold mb-4">单合同分析</h2>
+            <!-- 新增的三个输入字段 -->
+            <div class="flex items-center mb-3">
+                <label class="w-40 font-medium">含税合同额（元）:</label>
+                <input type="number" id="contractAmount" min="0" step="1" value="0"
+                    class="w-32 border border-gray-300 rounded px-2 py-1">
+            </div>
+            <div class="flex items-center mb-3">
+                <label class="w-40 font-medium">含税成本（元）:</label>
+                <input type="number" id="costAmount" min="0" step="1" value="0"
+                    class="w-32 border border-gray-300 rounded px-2 py-1">
+            </div>
+            <div class="flex items-center mb-3">
+                <label class="w-40 font-medium">含税安装成本（元）:</label>
+                <input type="number" id="installationCost" min="0" step="1" value="0"
+                    class="w-32 border border-gray-300 rounded px-2 py-1">
+            </div>
+
+            <div class="flex items-center mb-3">
+                <label class="w-40 font-medium">选择公司:</label>
+                <select id="company" class="w-36 border border-gray-300 rounded px-2 py-1">
+                    <option value="longjing">龙净蜂巢</option>
+                    <option value="xinlu">新陆科技</option>
+                    <option value="ganfa">干法</option>
+                    <option value="dianchuchen">电除尘</option>
+                    <option value="diandai">电袋</option>
+                    <option value="yejin">冶金</option>
+                    <option value="diankong">电控</option>
+                    <option value="shifatuoliu">湿法脱硫</option>
+                    <option value="wuliao">物料</option>
+                    <option value="wuhan_keji">武汉科技</option>
+                    <option value="xi_an">西安</option>
+                    <option value="kejie">科杰</option>
+                    <option value="shuowu">水务</option>
+                    <option value="turang">土壤</option>
+                    <option value="anzhuang_gongsi">安装公司</option>
+                    <option value="huanjing_yanjiuyuan">环境研究院</option>
+                    <option value="jiangsu_jieneng">江苏节能</option>
+                    <option value="longjing_lianhui">龙净联晖</option>
+                    <option value="qingnengyuan">清洁能源</option>
+                    <option value="chunei_dianxin">储能电芯</option>
+                </select>
+            </div>
+
+            <div class="flex items-center mb-3">
+                <label class="w-40 font-medium">是否包含安装:</label>
+                <select id="hasInstallation" class="w-24 border border-gray-300 rounded px-2 py-1">
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-9 gap-4 mb-3">
+                <div class="font-medium">预付 (%)</div>
+                <div class="font-medium">进度款 (%)</div>
+                <div class="font-medium">发货款 (%)</div>
+                <div class="font-medium">到货款 (%)</div>
+                <div class="font-medium">安装款 (%)</div>
+                <div class="font-medium">调试款 (%)</div>
+                <div class="font-medium">首验款 (%)</div>
+                <div class="font-medium">其他验收 (%)</div>
+                <div class="font-medium">质保金 (%)</div>
+            </div>
+            <div class="grid grid-cols-9 gap-4 mb-3">
+                <div>
+                    <input type="number" id="prepay" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="progress" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="delivery" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="arrival" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="installation" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="debug" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="firstAcceptance" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="otherAcceptance" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+                <div>
+                    <input type="number" id="warranty" min="0" max="100" step="1" value="0"
+                        class="w-full border border-gray-300 rounded px-2 py-1">
+                </div>
+            </div>
+
+            <div class="bg-yellow-100 text-gray-600 p-3 rounded mb-3" id="totalCheck"></div>
+
+            <div class="flex items-center mb-3">
+                <label class="w-40 font-medium">质保期(年):</label>
+                <input type="number" id="warrantyPeriod" min="0" step="0.5" value="0"
+                    class="w-24 border border-gray-300 rounded px-2 py-1">
+            </div>
+
+            <button onclick="calculateSingle()"
+                class="bg-blue-500 text-white py-2 px-6 rounded hover:bg-blue-600">立即计算</button>
+
+            <!-- 原有结果显示 -->
+            <div id="singleResult" class="mt-4 p-4 rounded font-bold text-center"></div>
+            <div id="conditionDetails" class="mt-3 p-4 bg-gray-50 rounded border border-gray-200"></div>
+
+            <!-- 新增垫资结果区域 -->
+            <div id="advanceResult" class="mt-4 p-4 bg-green-100 rounded border border-green-400">
+                <h4 class="text-green-700 font-bold mb-2">垫资计算结果</h4>
+            </div>
+        </div>
+
+        <!-- 批量模式（新增功能） -->
+        <div id="batchMode" class="batch-section">
+            <h2 class="text-2xl font-bold mb-4">批量合同分析</h2>
+            <div class="upload-area">
+                <p>下载模板：<a href="#" onclick="downloadTemplate()">点击下载Excel模板</a></p>
+                <input type="file" id="excelFile" accept=".xlsx, .xls">
+                <button onclick="processUploadedFile()"
+                    class="bg-blue-500 text-white py-2 px-6 rounded hover:bg-blue-600 mt-3">提交</button>
+                <p>支持最多1000条合同数据批量分析</p>
+            </div>
+
+            <!-- 结果展示 -->
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>合同编号</th>
+                        <th>合同类型</th>
+                        <th>节点二垫资金额</th>
+                        <th>节点三垫资金额</th>
+                        <th>最终垫资金额</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+
+            <button onclick="exportExcel()"
+                class="download-btn bg-green-500 text-white py-2 px-6 rounded hover:bg-green-600" style="display:none;">
+                导出分析结果
+            </button>
+        </div>
+    </div>
+
+    <!-- 引入Excel处理库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        // ========== 共用函数 ==========
+        function calculateClass(item) {
+            const company = item['公司名称'];
+            const hasInstallation = item['是否包含安装'] === '是';
+            const nodes = {
+                prepay: parseFloat(item['预付']) || 0,
+                progress: parseFloat(item['进度款']) || 0,
+                delivery: parseFloat(item['发货款']) || 0,
+                arrival: parseFloat(item['到货款']) || 0,
+                installation: parseFloat(item['安装款']) || 0,
+                debug: parseFloat(item['调试款']) || 0,
+                firstAcceptance: parseFloat(item['首验款']) || 0,
+                otherAcceptance: parseFloat(item['其他验']) || 0,
+                warranty: parseFloat(item['质保金']) || 0
+            };
+            const warrantyPeriod = parseFloat(item['质保期(年)']) || 0;
+
+            const total = Object.values(nodes).reduce((a, b) => a + b, 0);
+            if (total!== 100) {
+                return '数据错误（付款总额不等于100%）';
+            }
+
+            let basic;
+            if (hasInstallation) {
+                basic = nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival +
+                    nodes.installation + nodes.debug + nodes.firstAcceptance;
+            } else {
+                basic = nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival;
+            }
+            let acceptanceTotal = basic;
+            let finalTotal = nodes.otherAcceptance > 0?
+                (nodes.otherAcceptance + nodes.warranty) :
+                (nodes.firstAcceptance + nodes.otherAcceptance + nodes.warranty);
+
+            let class1Pass = true, class2Pass = true;
+
+            if (nodes.prepay < 10) {
+                class1Pass = false;
+            }
+            if (acceptanceTotal < 80) {
+                class1Pass = false;
+            }
+            const maxFinal1 = 20;
+            const maxWarranty1 = 10;
+            const maxWarrantyPeriod1 = company === 'longjing'? 2 : 1;
+            if (finalTotal > maxFinal1) {
+                class1Pass = false;
+            }
+            if (nodes.warranty > maxWarranty1) {
+                class1Pass = false;
+            }
+            if (warrantyPeriod > maxWarrantyPeriod1) {
+                class1Pass = false;
+            }
+
+            let acceptanceRequirement2 = 60;
+            if (!hasInstallation) {
+                acceptanceRequirement2 = company === 'xinlu'? 60 : 70;
+            }
+            if (acceptanceTotal < acceptanceRequirement2) {
+                class2Pass = false;
+            }
+            const maxFinal2 = 40;
+            const maxWarranty2 = 15;
+            const maxWarrantyPeriod2 = 2;
+            if (finalTotal > maxFinal2) {
+                class2Pass = false;
+            }
+            if (nodes.warranty > maxWarranty2) {
+                class2Pass = false;
+            }
+            if (warrantyPeriod > maxWarrantyPeriod2) {
+                class2Pass = false;
+            }
+
+            if (class1Pass) {
+                return '一类合同';
+            } else if (class2Pass) {
+                return '二类合同';
+            } else {
+                return '其他类合同';
+            }
+        }
+
+        function calculateAdvance(item) {
+            const contractAmount = parseFloat(item['含税合同额（元）']) || 0;
+            const costAmount = parseFloat(item['含税成本（元）']) || 0;
+            const installationCost = parseFloat(item['含税安装成本（元）']) || 0;
+            const nodes = {
+                prepay: parseFloat(item['预付']) || 0,
+                progress: parseFloat(item['进度款']) || 0,
+                delivery: parseFloat(item['发货款']) || 0,
+                arrival: parseFloat(item['到货款']) || 0,
+                installation: parseFloat(item['安装款']) || 0,
+                debug: parseFloat(item['调试款']) || 0
+            };
+
+            // 节点二垫资计算
+            const node2Advance = costAmount
+                - installationCost * 0.5
+                - contractAmount * (nodes.prepay + nodes.progress + nodes.delivery) / 100;
+
+            // 节点三垫资计算
+            let node3Advance;
+            if (nodes.debug!== 0) {
+                node3Advance = costAmount - contractAmount * (nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival + nodes.installation) / 100;
+            } else {
+                node3Advance = costAmount - contractAmount * (nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival + nodes.installation + nodes.debug) / 100;
+            }
+
+            // 最终垫资计算
+            const finalAdvance = Math.max(node2Advance, node3Advance);
+
+            return {
+                node2Advance,
+                node3Advance,
+                finalAdvance
+            };
+        }
+
+        // 自动计算总额并验证
+        function updateTotal() {
+            const nodes = ['prepay', 'progress', 'delivery', 'arrival', 'installation',
+                'debug', 'firstAcceptance', 'otherAcceptance', 'warranty'
+            ];
+            const total = nodes.reduce((sum, id) => sum + (parseFloat(document.getElementById(id).value) || 0), 0);
+            document.getElementById('totalCheck').innerHTML =
+                `当前总额：${total}% ${total === 100? '✓ 验证通过' : '❌ 必须等于100%'}`;
+        }
+
+        // 绑定输入事件
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('input', updateTotal);
+        });
+
+        // 处理粘贴事件
+        document.addEventListener('paste', function (e) {
+            e.preventDefault();
+            const text = e.clipboardData.getData('text/plain');
+            const values = text.split(/\s+|\t+/).map(str => str.trim()).filter(str => str!== '');
+            const paymentInputs = [
+                document.getElementById('prepay'),
+                document.getElementById('progress'),
+                document.getElementById('delivery'),
+                document.getElementById('arrival'),
+                document.getElementById('installation'),
+                document.getElementById('debug'),
+                document.getElementById('firstAcceptance'),
+                document.getElementById('otherAcceptance'),
+                document.getElementById('warranty')
+            ];
+            const focusedInput = document.activeElement;
+            if (paymentInputs.includes(focusedInput)) {
+                const startIndex = paymentInputs.indexOf(focusedInput);
+                for (let i = 0; i < values.length && i + startIndex < paymentInputs.length; i++) {
+                    const value = parseFloat(values[i].replace('%', ''));
+                    if (!isNaN(value)) {
+                        paymentInputs[i + startIndex].value = value;
+                    }
+                }
+            } else if (['contractAmount', 'costAmount', 'installationCost'].includes(focusedInput.id)) {
+                const value = parseFloat(values[0]);
+                if (!isNaN(value)) {
+                    focusedInput.value = value;
+                }
+            }
+            updateTotal();
+        });
+
+        // ========== 单合同模式 ==========
+        function calculateSingle() {
+            // 获取基础数据
+            const company = document.getElementById('company').value;
+            const hasInstallation = document.getElementById('hasInstallation').value === 'true';
+            const nodes = {
+                prepay: parseFloat(document.getElementById('prepay').value) || 0,
+                progress: parseFloat(document.getElementById('progress').value) || 0,
+                delivery: parseFloat(document.getElementById('delivery').value) || 0,
+                arrival: parseFloat(document.getElementById('arrival').value) || 0,
+                installation: parseFloat(document.getElementById('installation').value) || 0,
+                debug: parseFloat(document.getElementById('debug').value) || 0,
+                firstAcceptance: parseFloat(document.getElementById('firstAcceptance').value) || 0,
+                otherAcceptance: parseFloat(document.getElementById('otherAcceptance').value) || 0,
+                warranty: parseFloat(document.getElementById('warranty').value) || 0
+            };
+            const warrantyPeriod = parseFloat(document.getElementById('warrantyPeriod').value) || 0;
+
+            // 验证总额
+            const total = Object.values(nodes).reduce((a, b) => a + b, 0);
+            if (total!== 100) {
+                showResult('付款总额必须等于100%', 'invalid');
+                document.getElementById('conditionDetails').innerHTML =
+                    `当前总额：${total}%，请调整付款比例`;
+                return;
+            }
+
+            let basic;
+            if (hasInstallation) {
+                basic = nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival +
+                    nodes.installation + nodes.debug + nodes.firstAcceptance;
+            } else {
+                basic = nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival;
+            }
+            let acceptanceTotal = basic;
+            let finalTotal = nodes.otherAcceptance > 0?
+                (nodes.otherAcceptance + nodes.warranty) :
+                (nodes.firstAcceptance + nodes.otherAcceptance + nodes.warranty);
+
+            let class1Pass = true, class2Pass = true, details = [];
+
+            if (nodes.prepay < 10) {
+                class1Pass = false;
+                details.push('❌ 预收款不足10%');
+            }
+            if (acceptanceTotal < 80) {
+                class1Pass = false;
+                details.push(`❌ 验收回款不足80% (当前${acceptanceTotal}%)`);
+            }
+            const maxFinal1 = 20;
+            const maxWarranty1 = 10;
+            const maxWarrantyPeriod1 = company === 'longjing'? 2 : 1;
+            if (finalTotal > maxFinal1) {
+                class1Pass = false;
+                details.push(`❌ 尾款超过${maxFinal1}% (当前${finalTotal}%)`);
+            }
+            if (nodes.warranty > maxWarranty1) {
+                class1Pass = false;
+                details.push(`❌ 质保金超过${maxWarranty1}% (当前${nodes.warranty}%)`);
+            }
+            if (warrantyPeriod > maxWarrantyPeriod1) {
+                class1Pass = false;
+                details.push(`❌ 质保期超过${maxWarrantyPeriod1}年 (当前${warrantyPeriod}年)`);
+            }
+
+            let acceptanceRequirement2 = 60;
+            if (!hasInstallation) {
+                acceptanceRequirement2 = company === 'xinlu'? 60 : 70;
+            }
+            if (acceptanceTotal < acceptanceRequirement2) {
+                class2Pass = false;
+                details.push(`❌ 验收回款不足${acceptanceRequirement2}% (当前${acceptanceTotal}%)`);
+            }
+            const maxFinal2 = 40;
+            const maxWarranty2 = 15;
+            const maxWarrantyPeriod2 = 2;
+            if (finalTotal > maxFinal2) {
+                class2Pass = false;
+                details.push(`❌ 尾款超过${maxFinal2}% (当前${finalTotal}%)`);
+            }
+            if (nodes.warranty > maxWarranty2) {
+                class2Pass = false;
+                details.push(`❌ 质保金超过${maxWarranty2}% (当前${nodes.warranty}%)`);
+            }
+            if (warrantyPeriod > maxWarrantyPeriod2) {
+                class2Pass = false;
+                details.push(`❌ 质保期超过${maxWarrantyPeriod2}年 (当前${warrantyPeriod}年)`);
+            }
+
+            let resultText, resultClass;
+            if (class1Pass) {
+                resultText = `✅ 符合一类合同条件<br>累计验收回款：${acceptanceTotal}% | 尾款：${finalTotal}%`;
+                resultClass = 'bg-green-100 text-green-700';
+            } else if (class2Pass) {
+                resultText = `✅ 符合二类合同条件<br>累计验收回款：${acceptanceTotal}% | 尾款：${finalTotal}%`;
+                resultClass = 'bg-blue-100 text-blue-700';
+            } else {
+                resultText = `⚠️ 其他类合同<br>累计验收回款：${acceptanceTotal}% | 尾款：${finalTotal}%`;
+                resultClass = 'bg-gray-100 text-gray-600';
+            }
+
+            // 新增垫资计算逻辑
+            const contractAmount = parseFloat(document.getElementById('contractAmount').value) || 0;
+            const costAmount = parseFloat(document.getElementById('costAmount').value) || 0;
+            const installationCost = parseFloat(document.getElementById('installationCost').value) || 0;
+
+            // 节点二垫资计算
+            const node2Advance = costAmount
+                - installationCost * 0.5
+                - contractAmount * (nodes.prepay + nodes.progress + nodes.delivery) / 100;
+
+            // 节点三垫资计算
+            let node3Advance;
+            if (nodes.debug!== 0) {
+                node3Advance = costAmount - contractAmount * (nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival + nodes.installation) / 100;
+            } else {
+                node3Advance = costAmount - contractAmount * (nodes.prepay + nodes.progress + nodes.delivery + nodes.arrival + nodes.installation + nodes.debug) / 100;
+            }
+
+            // 最终垫资计算
+            const finalAdvance = Math.max(node2Advance, node3Advance);
+
+            // 显示垫资结果
+            const advanceHTML = `
+                <p>节点二垫资金额：¥${node2Advance.toFixed(2)}</p>
+                <p>节点三垫资金额：¥${node3Advance.toFixed(2)}</p>
+                <p class="font-bold">最终垫资金额：¥${finalAdvance.toFixed(2)}</p>
+            `;
+            document.getElementById('advanceResult').innerHTML = `<h4 class="text-green-700 font-bold mb-2">垫资计算结果</h4>` + advanceHTML;
+
+            // 显示合同类型结果
+            showResult(resultText, resultClass);
+            document.getElementById('conditionDetails').innerHTML = details.join('<br>');
+        }
+
+        // 原有显示结果函数保持不变
+        function showResult(text, className) {
+            const resultDiv = document.getElementById('singleResult');
+            resultDiv.className = `p-4 rounded font-bold text-center ${className}`;
+            resultDiv.innerHTML = text;
+        }
+
+        // ========== 批量模式 ==========
+        // 模式切换
+        function switchMode(mode) {
+            document.getElementById('singleMode').style.display =
+                mode === 'single'? 'block' : 'none';
+            document.getElementById('batchMode').style.display =
+                mode === 'batch'? 'block' : 'none';
+        }
+
+        // 处理上传的文件
+        function processUploadedFile() {
+            const file = document.getElementById('excelFile').files[0];
+            if (!file) {
+                console.error('未选择文件');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    console.log('解析后的JSON数据:', jsonData);
+
+                    processData(jsonData);
+                } catch (error) {
+                    console.error('文件处理出错:', error);
+                }
+            };
+            reader.onerror = function () {
+                console.error('文件读取出错');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 数据处理
+        function processData(data) {
+            try {
+                const results = data.map(item => {
+                    const contractType = calculateClass(item);
+                    const { node2Advance, node3Advance, finalAdvance } = calculateAdvance(item);
+
+                    return {
+                        合同编号: item['合同编号'] || 'N/A',
+                       contractType,
+                        节点二垫资金额: node2Advance.toFixed(2),
+                        节点三垫资金额: node3Advance.toFixed(2),
+                        最终垫资金额: finalAdvance.toFixed(2)
+                    };
+                });
+
+                showResults(results);
+                document.querySelector('.download-btn').style.display = 'block';
+            } catch (error) {
+                console.error('数据处理出错:', error);
+            }
+        }
+
+        // 显示结果
+        function showResults(data) {
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td>${item.合同编号}</td>
+                    <td>${item.contractType}</td>
+                    <td>¥${item.节点二垫资金额}</td>
+                    <td>¥${item.节点三垫资金额}</td>
+                    <td>¥${item.最终垫资金额}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 模板下载
+        function downloadTemplate() {
+            const template = [{
+                "合同编号": "CT20240001",
+                "公司名称": "龙净蜂巢",
+                "含税合同额（元）": 1000000,
+                "含税成本（元）": 600000,
+                "含税安装成本（元）": 100000,
+                "是否包含安装": "是",
+                "预付": 10,
+                "进度款": 20,
+                "发货款": 20,
+                "到货款": 20,
+                "安装款": 10,
+                "调试款": 10,
+                "首验款": 5,
+                "其他验": 0,
+                "质保金": 5,
+                "质保期(年)": 1
+            }];
+
+            const ws = XLSX.utils.json_to_sheet(template);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "模板");
+            XLSX.writeFile(wb, "合同模板.xlsx");
+        }
+
+        // 导出结果
+        function exportExcel() {
+            const rows = [
+                ["合同编号", "合同类型", "节点二垫资金额", "节点三垫资金额", "最终垫资金额"],
+                ...Array.from(document.querySelectorAll('#resultsTable tr')).map(tr =>
+                    Array.from(tr.children).map(td => td.innerText)
+                )
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "分析结果");
+            XLSX.writeFile(wb, "分析结果.xlsx");
+        }
+
+        // 初始化总额计算
+        updateTotal();
+    </script>
+</body>
+
+</html>
